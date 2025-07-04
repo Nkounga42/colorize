@@ -62,4 +62,4 @@ Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou à
 
 ## Licence
 
-[Insérez ici les informations de licence]
+MIT Lisence
