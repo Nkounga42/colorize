@@ -4,7 +4,7 @@ ColorVerse est une application web interactive pour la création et l'édition d
 
 
 
-![ColorVerse Interface](https://github.com/AdnaneBoufarra/ColorVerse/blob/main/colorize/public/colorverse.png)
+![ColorVerse Interface](https://github.com/Nkounga42/colorize/blob/main/colorize%20screen%20shot.png)
 
 ## Fonctionnalités
 
