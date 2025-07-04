@@ -1,54 +1,65 @@
-# React + TypeScript + Vite
+# ColorVerse
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+ColorVerse est une application web interactive pour la création et l'édition d'images. Elle offre une interface utilisateur intuitive avec des outils de dessin avancés basés sur Fabric.js.
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Expanding the ESLint configuration
+![ColorVerse Interface](https://github.com/AdnaneBoufarra/ColorVerse/blob/main/colorize/public/colorverse.png)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Fonctionnalités
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+- Outils de dessin variés (crayon, formes géométriques, texte)
+- Importation et manipulation d'images
+- Gestion des calques
+- Personnalisation des propriétés visuelles (couleur, taille, rotation, etc.)
+- Interface réactive et moderne
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Structure du Projet
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Le projet est organisé comme suit dans le dossier `src`:
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+- `components/`: Contient les composants réutilisables de l'interface utilisateur
+  - `ImageDropZone.tsx`: Zone de dépôt pour l'importation d'images
+  - `SecondaryToolbar.tsx`: Barre d'outils secondaire pour les ajustements fins
+- `fabric/`: Contient les fichiers liés à l'intégration de Fabric.js
+  - `canvasActions.tsx`: Définit les actions et outils disponibles sur le canvas
+- `pages/`: Contient les pages principales de l'application
+  - `drawing.tsx`: Page principale de dessin et d'édition
+
+## Technologies Utilisées
+
+- React
+- TypeScript
+- Fabric.js
+- Tailwind CSS (présumé basé sur les classes utilisées)
+
+## Installation
+
+1. Clonez ce dépôt
+2. Installez les dépendances avec `npm install`
+3. Lancez l'application en mode développement avec `npm run dev`
+
+## Utilisation
+
+1. Ouvrez l'application dans votre navigateur
+2. Utilisez les outils de la barre latérale pour dessiner ou ajouter des formes
+3. Importez des images en les faisant glisser dans la zone de dépôt
+4. Ajustez les propriétés des objets sélectionnés avec la barre d'outils secondaire
+
+## Image Description Metadata
+
+This project includes an interactive canvas where users can create and manipulate images. The main visual elements include:
+
+- A drawing canvas powered by Fabric.js
+- Toolbars for selecting drawing tools and adjusting object properties
+- An image drop zone for importing external images into the canvas
+
+These elements combine to provide a rich user experience for image creation and editing.
+
+## Contribution
+
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou à soumettre une pull request.
+
+## Licence
+
+[Insérez ici les informations de licence]

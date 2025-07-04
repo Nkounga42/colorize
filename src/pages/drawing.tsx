@@ -218,20 +218,20 @@ const Drawing = () => {
   useEffect(() => {
     if (!fabricLoaded || !canvasRef.current || canvas) return;
 
-    const width = window.innerWidth - 600;
-    const height = window.innerHeight - 120;
+    const width =500;
+    const height = 500;
     const fabricCanvas = new window.fabric.Canvas(canvasRef.current, {
       backgroundColor: "#ffffff",
       width,
       height,
     });
 
-    const handleResize = () => {
-      fabricCanvas.setWidth(window.innerWidth - 320);
-      fabricCanvas.setHeight(window.innerHeight);
+    const handleResize = (Height , Width  ) => {
+      fabricCanvas.setWidth(Width);
+      fabricCanvas.setHeight(Height);
       fabricCanvas.renderAll();
     };
-    window.addEventListener("resize", handleResize);
+    window.addEventListener("resize", handleResize(width, height));
 
     fabricCanvas.freeDrawingBrush.width = strokeWidth;
     fabricCanvas.freeDrawingBrush.color = drawingColor;
