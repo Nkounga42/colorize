@@ -21,22 +21,19 @@ import Canvas from "../components/Canvas";
 const initialHistoryState = {
   history: [],
   historyIndex: -1,
-  maxHistorySize: 50, // Limite la taille de l'historique
+  maxHistorySize: 50,
 };
 
 function historyReducer(state, action) {
   switch (action.type) {
     case "SAVE_STATE":
       {
-        // On coupe l'historique futur si on fait un nouveau dessin
         const newHistory = state.history.slice(0, state.historyIndex + 1);
         newHistory.push(action.payload);
         
-        // Limite la taille de l'historique
         if (newHistory.length > state.maxHistorySize) {
           newHistory.shift();
         } else {
-          // Seulement si on n'a pas supprimé le premier élément
           state.historyIndex++;
         }
         
@@ -69,6 +66,7 @@ const Drawing = () => {
   const [selectedTool, setSelectedTool] = useState("select");
   const [layers, setLayers] = useState([]);
   const [selectedLayer, setSelectedLayer] = useState(null);
+  const [selectedLayers, setSelectedLayers] = useState([]); // MOVED HERE - before it's used
   const [drawingColor, setDrawingColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(2);
   const [visualProperties, setVisualProperties] = useState(null);
@@ -76,13 +74,27 @@ const Drawing = () => {
   const [showLayersPanel, setShowLayersPanel] = useState(false);
   const colorIndex = useRef(0);
   
-  // Refs pour la gestion de l'historique
   const isLoadingFromHistory = useRef(false);
   const saveTimeout = useRef(null);
   const lastSavedState = useRef(null);
 
-  // useReducer pour l'historique
   const [historyState, dispatch] = useReducer(historyReducer, initialHistoryState);
+
+  // MOVED: deleteSelectedLayers function definition before it's used
+  const deleteSelectedLayers = useCallback(() => {
+    if (!canvas || selectedLayers.length === 0) return;
+    
+    // Supprimer tous les objets sélectionnés
+    selectedLayers.forEach(layer => {
+      canvas.remove(layer.object);
+    });
+    
+    canvas.discardActiveObject();
+    setSelectedLayers([]);
+    setSelectedLayer(null);
+    updateLayers(canvas);
+    saveStateImmediate(canvas);
+  }, [canvas, selectedLayers]);
 
   useEffect(() => {
     if (!selectedLayer) return;
@@ -133,11 +145,9 @@ const Drawing = () => {
     loadFabric();
   }, []);
 
-  // Fonction de sauvegarde avec debouncing
   const saveStateDebounced = useCallback((fabricCanvas) => {
     if (isLoadingFromHistory.current) return;
     
-    // Annule le timeout précédent
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
@@ -145,15 +155,13 @@ const Drawing = () => {
     saveTimeout.current = setTimeout(() => {
       const currentState = JSON.stringify(fabricCanvas.toJSON());
       
-      // Évite de sauvegarder le même état
       if (currentState !== lastSavedState.current) {
         lastSavedState.current = currentState;
         dispatch({ type: "SAVE_STATE", payload: currentState });
       }
-    }, 300); // Délai de 300ms
+    }, 300);
   }, []);
 
-  // Fonction de sauvegarde immédiate pour les actions importantes
   const saveStateImmediate = useCallback((fabricCanvas) => {
     if (isLoadingFromHistory.current) return;
     
@@ -163,6 +171,49 @@ const Drawing = () => {
       dispatch({ type: "SAVE_STATE", payload: currentState });
     }
   }, []);
+
+  // FONCTION MODIFIÉE : updateLayers avec préservation des noms
+  const updateLayers = useCallback((fabricCanvas) => {
+    const objects = fabricCanvas.getObjects();
+    
+    setLayers(prevLayers => {
+      return objects.map((obj, i) => {
+        // Chercher si cette couche existait déjà
+        const existingLayer = prevLayers.find(layer => 
+          layer.object === obj || 
+          (layer.id && obj.id && layer.id === obj.id)
+        );
+        
+        // Si la couche existait déjà, préserver son nom personnalisé
+        if (existingLayer) {
+          return {
+            ...existingLayer,
+            id: obj.id || existingLayer.id || `layer-${i}`,
+            visible: obj.visible !== false,
+            locked: !obj.selectable,
+            object: obj,
+          };
+        }
+        
+        // Sinon, créer une nouvelle couche avec un nom par défaut
+        return {
+          id: obj.id || `layer-${i}`,
+          name: obj.customName || getObjectTypeName(obj.type) + ` ${i + 1}`,
+          visible: obj.visible !== false,
+          locked: !obj.selectable,
+          object: obj,
+        };
+      });
+    });
+  }, []);
+
+  // FONCTION AJOUTÉE : pour assigner des IDs uniques
+  const addUniqueId = (obj) => {
+    if (!obj.id) {
+      obj.id = `obj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+    return obj;
+  };
 
   useEffect(() => {
     if (!fabricLoaded || !canvasRef.current || canvas) return;
@@ -185,7 +236,6 @@ const Drawing = () => {
     fabricCanvas.freeDrawingBrush.width = strokeWidth;
     fabricCanvas.freeDrawingBrush.color = drawingColor;
 
-    // Événements avec gestion améliorée
     fabricCanvas.on("object:added", (e) => {
       if (!isLoadingFromHistory.current) {
         updateLayers(fabricCanvas);
@@ -225,8 +275,10 @@ const Drawing = () => {
       }
     });
 
+    // ÉVÉNEMENT MODIFIÉ : path:created avec ID unique
     fabricCanvas.on("path:created", (e) => {
       if (!isLoadingFromHistory.current) {
+        addUniqueId(e.path);
         updateLayers(fabricCanvas);
         saveStateImmediate(fabricCanvas);
       }
@@ -248,7 +300,6 @@ const Drawing = () => {
 
     setCanvas(fabricCanvas);
     
-    // Sauvegarde initiale
     const initialState = JSON.stringify(fabricCanvas.toJSON());
     lastSavedState.current = initialState;
     dispatch({ type: "CLEAR_HISTORY", payload: initialState });
@@ -260,7 +311,7 @@ const Drawing = () => {
       window.removeEventListener("resize", handleResize);
       fabricCanvas.dispose();
     };
-  }, [fabricLoaded, saveStateDebounced, saveStateImmediate]);
+  }, [fabricLoaded, saveStateDebounced, saveStateImmediate, updateLayers]);
 
   useEffect(() => {
     if (canvas && canvas.freeDrawingBrush) {
@@ -287,18 +338,85 @@ const Drawing = () => {
     }
   }, [canvas, selectedTool, drawingColor, strokeWidth]);
 
-  const updateLayers = (fabricCanvas) => {
-    const objects = fabricCanvas.getObjects();
-    setLayers(
-      objects.map((obj, i) => ({
-        id: obj.id || `layer-${i}`,
-        name: getObjectTypeName(obj.type) + ` ${i + 1}`,
-        visible: obj.visible !== false,
-        locked: !obj.selectable,
-        object: obj,
-      }))
-    );
-  };
+  useEffect(() => {
+    if (!canvas) return;
+    
+    const handleSelectionCreated = (e) => {
+      if (e.selected?.length > 1) {
+        const selectedLayerObjects = e.selected.map(obj => 
+          layers.find(layer => layer.object === obj)
+        ).filter(Boolean);
+        setSelectedLayers(selectedLayerObjects);
+        setSelectedLayer(null);
+      } else if (e.selected?.length === 1) {
+        setSelectedLayer(e.selected[0]);
+        setSelectedLayers([]);
+      }
+    };
+    
+    const handleSelectionUpdated = (e) => {
+      if (e.selected?.length > 1) {
+        const selectedLayerObjects = e.selected.map(obj => 
+          layers.find(layer => layer.object === obj)
+        ).filter(Boolean);
+        setSelectedLayers(selectedLayerObjects);
+        setSelectedLayer(null);
+      } else if (e.selected?.length === 1) {
+        setSelectedLayer(e.selected[0]);
+        setSelectedLayers([]);
+      }
+    };
+    
+    const handleSelectionCleared = () => {
+      setSelectedLayer(null);
+      setSelectedLayers([]);
+    };
+    
+    // Nettoyer les anciens event listeners
+    canvas.off('selection:created');
+    canvas.off('selection:updated');
+    canvas.off('selection:cleared');
+    
+    // Ajouter les nouveaux
+    canvas.on('selection:created', handleSelectionCreated);
+    canvas.on('selection:updated', handleSelectionUpdated);
+    canvas.on('selection:cleared', handleSelectionCleared);
+    
+    return () => {
+      canvas.off('selection:created', handleSelectionCreated);
+      canvas.off('selection:updated', handleSelectionUpdated);
+      canvas.off('selection:cleared', handleSelectionCleared);
+    };
+  }, [canvas, layers]);
+
+  // Gestionnaire pour les touches globales
+  useEffect(() => {
+    const handleGlobalKeyDown = (event) => {
+      // Vérifier si l'utilisateur n'est pas en train d'écrire dans un input
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      if ((event.key === 'Delete' || event.key === 'Backspace')) {
+        event.preventDefault();
+        
+        if (selectedLayers.length > 0) {
+          deleteSelectedLayers();
+        } else if (selectedLayer) {
+          canvas.remove(selectedLayer);
+          canvas.discardActiveObject();
+          setSelectedLayer(null);
+          updateLayers(canvas);
+          saveStateImmediate(canvas);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [selectedLayers, selectedLayer, canvas, deleteSelectedLayers, updateLayers, saveStateImmediate]);
 
   const getObjectTypeName = (type) => {
     const names = {
@@ -323,7 +441,6 @@ const Drawing = () => {
         updateLayers(canvas);
         dispatch({ type: "SET_INDEX", payload: newIndex });
         
-        // Délai pour s'assurer que tous les événements sont traités
         setTimeout(() => {
           isLoadingFromHistory.current = false;
         }, 100);
@@ -344,7 +461,6 @@ const Drawing = () => {
         updateLayers(canvas);
         dispatch({ type: "SET_INDEX", payload: newIndex });
         
-        // Délai pour s'assurer que tous les événements sont traités
         setTimeout(() => {
           isLoadingFromHistory.current = false;
         }, 100);
@@ -352,6 +468,7 @@ const Drawing = () => {
     }
   };
 
+  // FONCTION MODIFIÉE : addShape avec ID unique
   const addShape = (type) => {
     if (!canvas || !window.fabric) return;
     const options = {
@@ -364,16 +481,16 @@ const Drawing = () => {
     let shape;
     switch (type) {
       case "rectangle":
-        shape = new fabric.Rect({ ...options, width: 100, height: 80 });
+        shape = new window.fabric.Rect({ ...options, width: 100, height: 80 });
         break;
       case "circle":
-        shape = new fabric.Circle({ ...options, radius: 50 });
+        shape = new window.fabric.Circle({ ...options, radius: 50 });
         break;
       case "triangle":
-        shape = new fabric.Triangle({ ...options, width: 100, height: 100 });
+        shape = new window.fabric.Triangle({ ...options, width: 100, height: 100 });
         break;
       case "line":
-        shape = new fabric.Line([50, 100, 200, 100], {
+        shape = new window.fabric.Line([50, 100, 200, 100], {
           ...options,
           fill: "",
           strokeWidth: strokeWidth * 2,
@@ -382,19 +499,28 @@ const Drawing = () => {
       default:
         return;
     }
+    
+    // Ajouter un ID unique
+    addUniqueId(shape);
+    
     canvas.add(shape);
     canvas.setActiveObject(shape);
   };
 
+  // FONCTION MODIFIÉE : addText avec ID unique
   const addText = () => {
     if (!canvas || !window.fabric) return;
-    const text = new fabric.IText("Texte...", {
+    const text = new window.fabric.IText("Texte...", {
       left: 100,
       top: 100,
       fill: drawingColor,
       fontSize: 24,
       fontFamily: "Arial",
     });
+    
+    // Ajouter un ID unique
+    addUniqueId(text);
+    
     canvas.add(text);
     canvas.setActiveObject(text);
   };
@@ -432,6 +558,8 @@ const Drawing = () => {
   };
 
   const selectLayer = (layer) => {
+    // Sélection simple - nettoie la sélection multiple
+    setSelectedLayers([]);
     canvas.setActiveObject(layer.object);
     canvas.renderAll();
     setSelectedLayer(layer.object);
@@ -469,6 +597,88 @@ const Drawing = () => {
     { id: "line", icon: Minus, label: "Ligne" },
     { id: "text", icon: Type, label: "Texte" },
   ];
+
+  const selectMultipleLayers = (layer, mode) => {
+    if (mode === 'toggle') {
+      setSelectedLayers(prev => {
+        const isSelected = prev.some(selected => selected.id === layer.id);
+        let newSelection;
+        if (isSelected) {
+          newSelection = prev.filter(selected => selected.id !== layer.id);
+        } else {
+          newSelection = [...prev, layer];
+        }
+        
+        // Synchroniser avec le canvas Fabric.js
+        if (newSelection.length > 1) {
+          const fabricObjects = newSelection.map(l => l.object);
+          const activeSelection = new window.fabric.ActiveSelection(fabricObjects, {
+            canvas: canvas,
+          });
+          canvas.setActiveObject(activeSelection);
+          canvas.renderAll();
+        } else if (newSelection.length === 1) {
+          canvas.setActiveObject(newSelection[0].object);
+          canvas.renderAll();
+        } else {
+          canvas.discardActiveObject();
+          canvas.renderAll();
+        }
+        
+        return newSelection;
+      });
+    } else if (mode === 'range') {
+      const layerIndex = layers.findIndex(l => l.id === layer.id);
+      const lastSelectedIndex = selectedLayers.length > 0 
+        ? layers.findIndex(l => l.id === selectedLayers[selectedLayers.length - 1].id)
+        : layerIndex;
+      
+      const start = Math.min(layerIndex, lastSelectedIndex);
+      const end = Math.max(layerIndex, lastSelectedIndex);
+      
+      const rangeSelection = layers.slice(start, end + 1);
+      setSelectedLayers(rangeSelection);
+      
+      // Synchroniser avec le canvas Fabric.js
+      if (rangeSelection.length > 1) {
+        const fabricObjects = rangeSelection.map(l => l.object);
+        const activeSelection = new window.fabric.ActiveSelection(fabricObjects, {
+          canvas: canvas,
+        });
+        canvas.setActiveObject(activeSelection);
+        canvas.renderAll();
+      }
+    }
+  };
+
+  const deleteLayer = (layer) => {
+    if (!canvas) return;
+    canvas.remove(layer.object);
+    canvas.discardActiveObject();
+    setSelectedLayers(prev => prev.filter(selected => selected.id !== layer.id));
+    updateLayers(canvas);
+    saveStateImmediate(canvas);
+  };
+
+  const createGroup = () => {
+    // Implémentation future pour créer des groupes
+    console.log("Créer un groupe");
+  };
+
+  const toggleGroup = (layer) => {
+    // Implémentation future pour les groupes
+    console.log("Toggle group", layer);
+  };
+
+  const addToGroup = (layers) => {
+    // Implémentation future pour ajouter aux groupes
+    console.log("Ajouter au groupe", layers);
+  };
+
+  const removeFromGroup = (layer) => {
+    // Implémentation future pour retirer des groupes
+    console.log("Retirer du groupe", layer);
+  };
 
   if (!fabricLoaded) {
     return (
@@ -515,11 +725,20 @@ const Drawing = () => {
         <LayersPanel
           layers={layers}
           selectedLayer={selectedLayer}
+          selectedLayers={selectedLayers}
           selectLayer={selectLayer}
+          selectMultipleLayers={selectMultipleLayers}
           moveLayer={moveLayer}
           toggleLayerVisibility={toggleLayerVisibility}
           toggleLayerLock={toggleLayerLock}
+          deleteLayer={deleteLayer}
+          deleteSelectedLayers={deleteSelectedLayers}
+          createGroup={createGroup}
+          toggleGroup={toggleGroup}
+          addToGroup={addToGroup}
+          removeFromGroup={removeFromGroup}
           setLayers={setLayers}
+          canvas={canvas} 
         />
       )}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-2 z-50">
