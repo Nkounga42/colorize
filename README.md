@@ -1,14 +1,12 @@
 # ColorVerse
 
-ColorVerse est une application web interactive pour la création et l'édition d'images. Elle offre une interface utilisateur intuitive avec des outils de dessin avancés basés sur Fabric.js.
-# ColorVerse  
-
 ![React](https://img.shields.io/badge/React-18.0.0-blue?logo=react&logoColor=white) 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript&logoColor=white) 
 ![Fabric.js](https://img.shields.io/badge/Fabric.js-Canvas-orange) 
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0-06B6D4?logo=tailwindcss&logoColor=white) 
 ![License](https://img.shields.io/badge/License-MIT-green)
 
+ColorVerse est une application web interactive pour la création et l'édition d'images. Elle offre une interface utilisateur intuitive avec des outils de dessin avancés basés sur Fabric.js.
 
 
 ![ColorVerse Interface](https://github.com/Nkounga42/colorize/blob/main/colorize%20screen%20shot.png)
